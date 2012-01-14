@@ -50,19 +50,25 @@
         type (:type item1)]
     (assoc item1 :type (get type-of-campfire type type))))
 
+(defn- user-me [client account]
+  (let [url (format "https://%s.campfirenow.com/users/me.json" account)]
+    (get-in (get-json url client) [:user :id])))
+
 (defrecord Campfire [client account room]
   Adapter
 
   (start [this on-event]
+    (let [me (user-me client account)
+          endpoint  (format "https://streaming.campfirenow.com/room/%s/live.json" room)
+          chunk-seq (httpc/stream-seq client :get endpoint)]
     (join room client)
     (say this "Hi everybody!")
-    (let [endpoint  (format "https://streaming.campfirenow.com/room/%s/live.json" room)
-          chunk-seq (httpc/stream-seq client :get endpoint)]
       (doseq [chunk (httpc/string chunk-seq)
               item-str (str/split chunk #"(?<=})\r")
               :when (not (str/blank? item-str))
-              :let [item (item-of-campfire (json/read-json item-str))
-                    action (on-event this item)]]
+              :let [item (item-of-campfire (json/read-json item-str))]
+              :when (not= (:user-id item) me)
+              :let [action (on-event this item)]]
         ((if (#{:answered :shutdown} action) log-info log-debug) "[ " action " ] " item)
         (if (= action :shutdown)
           (httpc/cancel chunk-seq)))
