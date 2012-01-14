@@ -32,25 +32,31 @@
       (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
     res))
 
-(defn join [room client]
+(defn join [{:keys [account room client]}]
   (post (format "https://%s.campfirenow.com/room/%s/join.json" account room) client nil)
   (log-info "Joined a room " room))
 
-(defn leave [room client]
+(defn leave [{:keys [account room client]}]
   (post (format "https://%s.campfirenow.com/room/%s/leave.json" account room) client nil)
   (log-info "Leaved a room " room))
 
-(defn- user-of-campfire [user-campfire]
-  (change-keys user-campfire :avatar_url :avatar))
+(defn- user-from-campfire [user]
+  (change-keys user :avatar_url :avatar))
 
-(def type-of-campfire {"TextMessage" :text "JoinMessage" :join})
+(defn type-from-campfire [type]
+  (case type
+    "TextMessage"  :text 
+    "EnterMessage" :join
+    "LeaveMessage" :leave
+    type))
 
-(defn- item-of-campfire [item-campfire]
-  (let [item1 (change-keys item-campfire :body :text :user_id :user-id :createed_at :timestamp)
-        type (:type item1)]
-    (assoc item1 :type (get type-of-campfire type type))))
+(defn- item-from-campfire [item]
+  (-> item
+    (change-keys :body :text  :user_id :user-id  :created_at :timestamp)
+    ; TODO parse timestamp and convert to tick
+    (update-in [:type] campfire-to-type)))
 
-(defn- user-me [client account]
+(defn- user-me-id [client account]
   (let [url (format "https://%s.campfirenow.com/users/me.json" account)]
     (get-in (get-json url client) [:user :id])))
 
@@ -58,21 +64,22 @@
   Adapter
 
   (start [this on-event]
-    (let [me (user-me client account)
+    (let [me-id     (user-me-id client account)
           endpoint  (format "https://streaming.campfirenow.com/room/%s/live.json" room)
           chunk-seq (httpc/stream-seq client :get endpoint)]
-    (join room client)
+      (log-info "Logged in as #" me-id " " (:name (user this me-id)))
+      (join this)
     (say this "Hi everybody!")
       (doseq [chunk (httpc/string chunk-seq)
               item-str (str/split chunk #"(?<=})\r")
               :when (not (str/blank? item-str))
-              :let [item (item-of-campfire (json/read-json item-str))]
-              :when (not= (:user-id item) me)
-              :let [action (on-event this item)]]
-        ((if (#{:answered :shutdown} action) log-info log-debug) "[ " action " ] " item)
-        (if (= action :shutdown)
+              :let     [item (item-from-campfire (json/read-json item-str))]
+              :when    (not= (:user-id item) me-id)
+              :let     [res (on-event this item)]]
+        ((if (#{:answered :shutdown} res) log-info log-debug) "[ " res " ] " item)
+        (if (= res :shutdown)
           (httpc/cancel chunk-seq)))
-      (leave room client)))
+      (leave this)))
 
   (say [_ msg]
     (let [url (format "https://%s.campfirenow.com/room/%s/speak.json" account room)
@@ -84,15 +91,16 @@
 
   (user [_ user-id]
     (let [url (format "https://%s.campfirenow.com/users/%s.json" account user-id)
-          user-campfire (:user (get-json url client))]
-      (user-of-campfire user-campfire)))
+          user (:user (get-json url client))]
+      (user-from-campfire user)))
 
   (users [_] 
     (let [url (format "https://%s.campfirenow.com/room/%s.json" account room)
           room-info (get-json url client)
           users-list (get-in room-info [:room :users])]
-      (into {} (for [uc users-list 
-                     :let [u (user-of-campfire uc)]]
+      (into {}
+        (for [uc   users-list 
+              :let [u (user-from-campfire uc)]]
                     [(:id u) u]))))
 ) 
 

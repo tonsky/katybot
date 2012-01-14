@@ -23,4 +23,4 @@ To make her exit, tell her
     > /stop
     < I'm out
 
-or type an empty string (in console).
+or type an empty string (console only).

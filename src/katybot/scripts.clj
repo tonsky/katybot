@@ -5,44 +5,48 @@
 (defn process [fns adapter env]
   (some #(% adapter env) fns))
 
-(defn privet [adapter {:keys [text user-id]}]
+(defn on-privet [adapter {:keys [text user-id]}]
   (when (re-find #"(?i)hello|hi" text)
     (let [user-info (user adapter user-id)]
       (say adapter (format "Nice to see you again, %s" (:name user-info)))
       (say-img adapter (:avatar user-info))
       :answered)))
 
-(defn shutdown [adapter {text :text}]
+(defn on-stop [adapter {text :text}]
   (when (re-find #"(?i)stop|shutdown|cancel|exit|quit" text)
     (say adapter "I’m out")
     :shutdown))
 
-(defn unknown [adapter _]
-  (say adapter "Didn’t get it")
+(defn on-unknown [adapter {text :text}]
+  (say adapter (str "I don’t get it: " text))
   :answered)
 
-(defn personal [aliases fns adapter {text :text :as event}]
-  (when-let [[_ alias cmd] (re-find aliases text)]
-    (process fns adapter (assoc event :text cmd :alias alias))))
-
-(defn log [adapter {:keys [timestamp type] :as event}]
-  (if (not= type :text)
-    (prn event))
-  nil)
-
-(defn filter-text [adapter {type :type}]
+(defn on-command [alias-re fns adapter {:keys [type text] :as event}]
   (if (= type :text)
-    nil
-    :ignored))
+    (when-let [[_ alias cmd] (re-find alias-re text)]
+      (process fns adapter (assoc event :text cmd :alias alias)))))
+
+(defn on-welcome [adapter {:keys [type user-id]}]
+  (if (= type :join)
+    (let [user-info (user adapter user-id)]
+      (say adapter (format "Glad to see you again, %s" (:name user-info)))
+      :answered)))
+
+(defn on-bye [adapter {:keys [type user-id]}]
+  (if (= type :leave)
+    (let [user-info (user adapter user-id)]
+      (say adapter (format "%s was a good man" (:name user-info)))
+      (say adapter "I guess")
+      :answered)))
 
 (defn on-event [aliases adapter event]
-  (let [aliases-re (re-pattern (str "(?i)^(" (str/join "|" aliases) ")[:,]?\\s*(.*)"))
-        personal-fns [
-          shutdown
-          privet
-          unknown]
+  (let [alias-re (re-pattern (str "(?i)^(" (str/join "|" aliases) ")[:,]?\\s*(.*)"))
+        command-fns [
+          on-stop
+          on-privet
+          on-unknown]
         top_fns [
-          log
-          filter-text
-          (partial personal aliases-re personal-fns)]]
+          on-welcome
+          on-bye
+          (partial on-command alias-re command-fns)]]
     (process top_fns adapter event)))
