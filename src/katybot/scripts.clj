@@ -2,11 +2,8 @@
   (:require [clojure.string :as str])
   (:use [katybot.core]))
 
-(defn wrap [fn adapter env]
-  (fn adapter env)) ;TODO wrap into try/catch 
-
 (defn process [fns adapter env]
-  (some #(wrap % adapter env) fns))
+  (some #(% adapter env) fns))
 
 (defn privet [adapter {:keys [text user-id]}]
   (when (re-find #"(?i)hello|hi" text)
