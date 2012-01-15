@@ -6,7 +6,7 @@
   Adapter
   (start [this on-event]
     (printf "\u001b[1;32m> ") (flush)
-    (read-line)
+    ;(read-line)
     (doseq [line (line-seq (java.io.BufferedReader. *in*))
             :let [event {:type :text :text line :user-id 0 :timestamp (.getTime (java.util.Date.))}
                   action (on-event this event)]

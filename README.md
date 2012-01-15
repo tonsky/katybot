@@ -22,7 +22,7 @@ To test the bot, use
     > /hi
     < Nice to see you again
 
-`katybot.scripts/on-event` uses `["/" "Kate" "Katy"]` aliases, so bot will respond on any commands starting with these words.
+`katybot.scripts/on-event` uses `["/" "Kate" "Katy"]` as its name aliases, so bot will respond to any commands starting with these words.
 
 #### Stopping
 

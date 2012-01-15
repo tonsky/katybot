@@ -7,14 +7,9 @@
 (def headers {"Content-Type" "application/json; charset=utf-8"
               "Accept" "application/json"})
 
-(defn- log [& msg] (println (apply str msg)))
-(defn- log-debug [& msg] );(log "\u001b[1;36m" (apply str msg) "\u001b[m"))
-(defn- log-info  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
-(defn- log-err   [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))
-
-(defn- get-json [url client]
+(defn- get-json [url client & query]
   (log-debug "HTTP GET: " url)
-  (let [resp   (httpc/await (httpc/GET client url :headers headers))
+  (let [resp   (httpc/await (httpc/GET client url :headers headers :query (apply hash-map query)))
         status (:code (httpc/status resp))
         res    (httpc/string resp)]
     (when-not (= 200 status)
@@ -69,10 +64,10 @@
           chunk-seq (httpc/stream-seq client :get endpoint)]
       (log-info "Logged in as #" me-id " " (:name (user this me-id)))
       (join this)
-    (say this "Hi everybody!")
-      (doseq [chunk (httpc/string chunk-seq)
+      (say this "Hi everybody!")
+      (doseq [chunk    (httpc/string chunk-seq)
               item-str (str/split chunk #"(?<=})\r")
-              :when (not (str/blank? item-str))
+              :when    (not (str/blank? item-str))
               :let     [item (item-from-campfire (json/read-json item-str))]
               :when    (not= (:user-id item) me-id)
               :let     [res (on-event this item)]]
@@ -90,7 +85,7 @@
     (say this [url "#.png"]))
 
   (user [_ user-id]
-    (let [url (format "https://%s.campfirenow.com/users/%s.json" account user-id)
+    (let [url  (format "https://%s.campfirenow.com/users/%s.json" account user-id)
           user (:user (get-json url client))]
       (user-from-campfire user)))
 
@@ -101,7 +96,7 @@
       (into {}
         (for [uc   users-list 
               :let [u (user-from-campfire uc)]]
-                    [(:id u) u]))))
+             [(:id u) u]))))
 ) 
 
 (defn start-campfire [account room token on-event]

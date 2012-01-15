@@ -19,3 +19,8 @@
         (when-let [[_ alias cmd] (re-find alias-re (:text event))]
           (process adapter (assoc event :text cmd :alias alias)))
         (process adapter event)))))
+
+(defn log [& msg] (println (apply str msg)))
+(defn log-debug [& msg] (log "\u001b[1;36m" (apply str msg) "\u001b[m"))
+(defn log-info  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
+(defn log-err   [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))
