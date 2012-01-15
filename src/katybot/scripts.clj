@@ -15,7 +15,9 @@
       (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
     res)))
 
-(defn on-stop [adapter {:keys [type text]}]
+(defn on-stop
+  "stop      — ask bot to shutdown gracefully"
+  [adapter {:keys [type text]}]
   (when (and (= type :text) (re-find #"(?i)stop|shutdown|cancel|exit|quit" text))
     (say adapter "I’m out")
     :shutdown))
@@ -33,7 +35,9 @@
       (say adapter "I guess")
       :answered)))
 
-(defn on-hello [adapter {:keys [type text user-id]}]
+(defn on-hello
+  "hello     — welcome your robot"
+  [adapter {:keys [type text user-id]}]
   (when (and (= type :text) (re-find #"(?i)hello|hi" text))
     (let [user-info (user adapter user-id)]
       (say adapter ["Nice to see you again, " (:name user-info)])
@@ -47,7 +51,9 @@
       nil
       (rand-nth images))))
 
-(defn on-images [adapter {:keys [type text]}]
+(defn on-images
+  "image me  <smth> — display random image from google image search"
+  [adapter {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ q] (re-find #"(?i)(?:image|img)(?: me)?(.*)" text)]
       (let [img (img q)]
@@ -56,7 +62,9 @@
           (say     adapter "I have nothing to show you"))
         :answered))))
 
-(defn on-mustachify [adapter {:keys [type text]}]
+(defn on-mustachify
+  "mustache  <smbd or url> — try it"
+  [adapter {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ q] (re-find #"(?i)(?:mo?u)?sta(?:s|c)he?(?: me)?\s+(.*)" text)]
       (let [img-url (if (re-matches #"(?i)^https?://.*" q) q (:unescapedUrl (img q)))]
@@ -65,10 +73,12 @@
           (say     adapter "Couldn't find any of his images"))
         :answered))))
 
-(defn on-translate [adapter {:keys [type text]}]
+(defn on-translate
+  "translate [from <lg>] [to <lg>] <phrase> — translates <phrase>, <lg> is two-letter lang code (en, ru, de, fr...)"
+  [adapter {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ f t q] (re-find #"(?i)translate(?:\s+me)?(?:\s+from\s+([a-z]{2}))?(?:\s+to\s+([a-z]{2}))?\s+(.*)" text)]
-      (let [from (or f "auto")
+      (let [from (if (re-matches #"(?i)[\p{InCyrillic}\d\p{Punct}\s]+" q) "ru" "auto")
             to   (or t "en")
             resp (http-get "http://translate.google.com/translate_a/t"
                   :query { :sl from  :tl to  :text (str \" q \")
@@ -80,10 +90,12 @@
           (say adapter [\" q \" " will lose too much in translation to " to]))
       :answered))))
 
-(defn on-calculate [adapter {:keys [type text]}]
+(defn on-calculate
+  "calc me   <expr> — calculates <expr> (2+2, 200 USD to Rub, 100C to F)"
+  [adapter {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ q] (re-find #"(?i)calc(?:ulate)?(?:\s+me)?\s+(.*)" text)]
-      (let [resp (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q})
+      (let [resp (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q} :user-agent "Mozilla/5.0")
             lhs   ((re-find #"lhs\s*:\s*\"(.*?)\"" resp) 1)
             rhs   ((re-find #"rhs\s*:\s*\"(.*?)\"" resp) 1)
             error ((re-find #"error\s*:\s*\"(.*?)\"" resp) 1)]
@@ -98,21 +110,15 @@
       (say adapter ["Please don’s say such things: " bw])
       nil)))
 
-(defn on-unknown [adapter {:keys [type text]}]
-  (when (= type :text)
-    (say adapter ["I don’t get it: " text])
-    :answered))
-
 (def on-event
   (wrap-commands 
     [ "/" "Kate" "Katy" ]
-    [ on-stop
-      on-join
-      on-leave
-      on-badwords
-      on-calculate
-      on-translate
-      on-images
-      on-mustachify
-      on-hello
-      on-unknown]))
+    [ #'on-stop
+      #'on-join
+      #'on-leave
+      #'on-badwords
+      #'on-calculate
+      #'on-translate
+      #'on-images
+      #'on-mustachify
+      #'on-hello]))

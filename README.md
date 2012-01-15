@@ -22,11 +22,18 @@ To test the bot, use
     > /hi
     < Nice to see you again
 
+To see list of all available command use `help`:
+
+    > /help
+    < stop      — ask bot to shutdown gracefully
+      calc me   — ...
+      ...
+
 `katybot.scripts/on-event` uses `["/" "Kate" "Katy"]` as its name aliases, so bot will respond to any commands starting with these words.
 
 #### Stopping
 
-To make her exit, tell her 
+To make her exit, tell her `stop`:
 
     > /stop
     < I'm out

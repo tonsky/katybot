@@ -11,16 +11,32 @@
 (defn change-keys [m & keys]
   (reduce (fn [acc [old new]] (dissoc (assoc acc new (m old)) old)) m (apply hash-map keys)))
 
+(defn log       [& msg] (println (apply str msg)))
+(defn log-debug [& msg] (log "\u001b[1;30m" (apply str msg) "\u001b[m"))
+(defn log-info  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
+(defn log-err   [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))
+
+(defn- on-help
+  "help      — display this help"
+  [fns adapter {:keys [type text]}]
+  (log-debug "Entering help")
+  (if (= type :text)
+    (when (re-find #"(?i)help" text)
+      (let [helps (remove nil? (map #(:doc (meta %)) (conj fns #'on-help)))]
+        (say adapter (str/join "\n" helps))
+      :answered))))
+
+(defn- on-unknown [adapter {:keys [type text]}]
+  (when (= type :text)
+    (say adapter ["I don’t get it: " text])
+    :answered))
+
 (defn wrap-commands [aliases fns]
   (let [alias-re (re-pattern (str "(?i)^(" (str/join "|" aliases) ")[:,]?\\s*(.*)"))
-        process  (fn [adapter event] (some #(% adapter event) fns))]
+        help     (partial on-help fns)
+        process  (fn [adapter event] (some #(% adapter event) (conj fns help on-unknown)))]
     (fn [adapter event]
       (if (= (:type event) :text)
         (when-let [[_ alias cmd] (re-find alias-re (:text event))]
           (process adapter (assoc event :text cmd :alias alias)))
         (process adapter event)))))
-
-(defn log       [& msg] (println (apply str msg)))
-(defn log-debug [& msg] (log "\u001b[1;30m" (apply str msg) "\u001b[m"))
-(defn log-info  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
-(defn log-err   [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))
