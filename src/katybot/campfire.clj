@@ -54,7 +54,7 @@
   (-> item
     (change-keys :body :text  :user_id :user-id  :created_at :timestamp)
     ; TODO parse timestamp and convert to tick
-    (update-in [:type] campfire-to-type)))
+    (update-in [:type] type-from-campfire)))
 
 (defn- user-me-id [client account]
   (let [url (format "https://%s.campfirenow.com/users/me.json" account)]
