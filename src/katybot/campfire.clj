@@ -97,7 +97,7 @@
         (for [uc   users-list 
               :let [u (user-from-campfire uc)]]
              [(:id u) u]))))
-) 
+)
 
 (defn start-campfire [account room token on-event]
   (with-open [client (httpc/create-client :user-agent "Katybot-clj/0.1" :auth {:user token :password "x" :preemptive true} )]

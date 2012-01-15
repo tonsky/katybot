@@ -14,7 +14,7 @@
             :while (not= action :shutdown)]
             (printf "\u001b[1;32m> ") (flush))
     (printf "\u001b[m") (flush))
-  (say     [_ msg]      (println "\u001b[1;36m<" msg "\u001b[m"))
-  (say-img [this url]   (println "\u001b[1;35m[" url "]\u001b[m"))
+  (say     [_ msg]     (println "\u001b[1;36m<" (apply str msg) "\u001b[m"))
+  (say-img [this url]  (println "\u001b[1;35m[" url "]\u001b[m"))
   (user    [_ user-id] {:id user-id :name "%username%" :avatar "http://example.com/nobody.png"})
   (users   [this]      [(user this 0) (user this 1) (user this 2)]))

@@ -23,20 +23,20 @@
 (defn on-join [adapter {:keys [type user-id]}]
   (if (= type :join)
     (let [user-info (user adapter user-id)]
-      (say adapter (format "Glad to see you again, %s" (:name user-info)))
+      (say adapter ["Glad to see you again, " (:name user-info)])
       :answered)))
 
 (defn on-leave [adapter {:keys [type user-id]}]
   (if (= type :leave)
     (let [user-info (user adapter user-id)]
-      (say adapter (format "%s was a good man" (:name user-info)))
+      (say adapter [(:name user-info) " was a good man"])
       (say adapter "I guess")
       :answered)))
 
 (defn on-hello [adapter {:keys [type text user-id]}]
   (when (and (= type :text) (re-find #"(?i)hello|hi" text))
     (let [user-info (user adapter user-id)]
-      (say adapter (format "Nice to see you again, %s" (:name user-info)))
+      (say adapter ["Nice to see you again, " (:name user-info)])
       ;(say-img adapter (:avatar user-info))
       :answered)))
 
@@ -76,25 +76,31 @@
                   :user-agent "Mozilla/5.0")
             res (json/read-json resp)]
         (if-let [translation (get-in res [0 0 0])]
-          (say adapter (str translation " is " to " for " \" q \" " (" (res 1) ")"))
-          (say adapter (str \" q \" " will lose too much in translation to " to)))
+          (say adapter [translation " is " to " for " \" q \" " (" (res 1) ")"])
+          (say adapter [\" q \" " will lose too much in translation to " to]))
       :answered))))
 
 (defn on-calculate [adapter {:keys [type text]}]
   (if (= type :text)
-    (when-let [[_ q] (re-find #"(?i)calc(?:ulate)?(?: me)?\s+(.*)" text)]
-      (let [resp (http-get "http://www.google.com/ig/calculator" :hl "en" :q q)
+    (when-let [[_ q] (re-find #"(?i)calc(?:ulate)?(?:\s+me)?\s+(.*)" text)]
+      (let [resp (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q})
             lhs   ((re-find #"lhs\s*:\s*\"(.*?)\"" resp) 1)
             rhs   ((re-find #"rhs\s*:\s*\"(.*?)\"" resp) 1)
             error ((re-find #"error\s*:\s*\"(.*?)\"" resp) 1)]
         (if (str/blank? error)
-          (say adapter (str lhs " = " rhs))
-          (say adapter (str "It’s too hard:" error)))
-        :answered))))          
+          (say adapter [lhs " = " rhs])
+          (say adapter ["It’s too hard:" error]))
+        :answered))))
+
+(defn on-badwords [adapter {:keys [type text]}]
+  (if (= type :text)
+    (when-let [[_ bw] (re-find #"(?i)(fuck|ass|\b(?:gay|pussy)\b)" text)]
+      (say adapter ["Please don’s say such things: " bw])
+      nil)))
 
 (defn on-unknown [adapter {:keys [type text]}]
   (when (= type :text)
-    (say adapter (str "I don’t get it: " text))
+    (say adapter ["I don’t get it: " text])
     :answered))
 
 (def on-event
@@ -103,6 +109,7 @@
     [ on-stop
       on-join
       on-leave
+      on-badwords
       on-calculate
       on-translate
       on-images
