@@ -11,15 +11,15 @@
 (defn change-keys [m & keys]
   (reduce (fn [acc [old new]] (dissoc (assoc acc new (m old)) old)) m (apply hash-map keys)))
 
-(defn log       [& msg] (println (apply str msg)))
-(defn log-debug [& msg] (log "\u001b[1;30m" (apply str msg) "\u001b[m"))
-(defn log-info  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
-(defn log-err   [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))
+(defn log  [& msg] (println (apply str msg)))
+(defn btw  [& msg] (log "\u001b[1;30m" (apply str msg) "\u001b[m"))
+(defn fyi  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
+(defn omg! [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))
 
 (defn- on-help
   "help      — display this help"
   [fns adapter {:keys [type text]}]
-  (log-debug "Entering help")
+  (btw "Entering help")
   (if (= type :text)
     (when (re-find #"(?i)help" text)
       (let [helps (remove nil? (map #(:doc (meta %)) (conj fns #'on-help)))]

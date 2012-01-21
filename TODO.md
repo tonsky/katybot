@@ -6,3 +6,5 @@
 [−] Deal with campfire reconnects  
 [−] Multi-threaded responses  
 [−] Persistent kv storage  
+[−] Separate texts from scripts logic
+[−] Multi-language support  

@@ -5,13 +5,13 @@
   (:use [katybot.core]))
 
 (defn http-get [url & {:keys [query user-agent] :or {query {} user-agent "Katybot-clj/0.1"}}]
-  (log-debug "HTTP GET:\n  " url "\n  " query)
+  (btw "HTTP GET:\n  " url "\n  " query)
   (with-open [client (httpc/create-client :user-agent user-agent)]
     (let [resp   (httpc/await (httpc/GET client url :query query))
           status (:code (httpc/status resp))
           res    (httpc/string resp)]
     (when-not (= 200 status)
-      (log-err "BAD RESPONSE: " res)
+      (omg! "BAD RESPONSE: " res)
       (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
     res)))
 

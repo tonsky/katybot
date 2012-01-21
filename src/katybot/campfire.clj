@@ -8,32 +8,32 @@
               "Accept" "application/json"})
 
 (defn- get-json [url client & query]
-  (log-debug "HTTP GET: " url)
+  (btw "HTTP GET: " url)
   (let [resp   (httpc/await (httpc/GET client url :headers headers :query (apply hash-map query)))
         status (:code (httpc/status resp))
         res    (httpc/string resp)]
     (when-not (= 200 status)
-      (log-err "BAD RESPONSE: " res)
+      (omg! "BAD RESPONSE: " res)
       (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
     (json/read-json res)))
 
 (defn- post [url client body]
-  (log-debug "HTTP POST:\n  " url "\n  " body)
+  (btw "HTTP POST:\n  " url "\n  " body)
   (let [resp (httpc/await (httpc/POST client url :body body :headers headers))
         status (:code (httpc/status resp))
         res (httpc/string resp)]
     (when-not (<= 200 status 299)
-      (log-err "BAD RESPONSE: " res)
+      (omg! "BAD RESPONSE: " res)
       (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
     res))
 
 (defn join [{:keys [account room client]}]
   (post (format "https://%s.campfirenow.com/room/%s/join.json" account room) client nil)
-  (log-info "Joined a room " room))
+  (fyi "Joined a room " room))
 
 (defn leave [{:keys [account room client]}]
   (post (format "https://%s.campfirenow.com/room/%s/leave.json" account room) client nil)
-  (log-info "Leaved a room " room))
+  (fyi "Leaved a room " room))
 
 (defn- user-from-campfire [user]
   (change-keys user :avatar_url :avatar))
@@ -62,7 +62,7 @@
     (let [me-id     (user-me-id client account)
           endpoint  (format "https://streaming.campfirenow.com/room/%s/live.json" room)
           chunk-seq (httpc/stream-seq client :get endpoint)]
-      (log-info "Logged in as #" me-id " " (:name (user this me-id)))
+      (fyi "Logged in as #" me-id " " (:name (user this me-id)))
       (join this)
       (say this "Hi everybody!")
       (doseq [chunk    (httpc/string chunk-seq)
@@ -71,7 +71,7 @@
               :let     [item (item-from-campfire (json/read-json item-str))]
               :when    (not= (:user-id item) me-id)
               :let     [res (on-event this item)]]
-        ((if (#{:answered :shutdown} res) log-info log-debug) "[ " res " ] " item)
+        ((if (#{:answered :shutdown} res) fyi btw) "[ " res " ] " item)
         (if (= res :shutdown)
           (httpc/cancel chunk-seq)))
       (leave this)))
