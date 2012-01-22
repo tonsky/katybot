@@ -30,10 +30,22 @@
     (say adapter ["I don’t get it: " text])
     :answered))
 
+(defn- run-safe [f adapter event]
+  (try
+    (f adapter event)
+    (catch Exception e
+      (let [cause (clojure.stacktrace/root-cause e)
+            msg (into ["I’m broke and that’s why:" 
+                       ""
+                       (.toString cause)] 
+                      (map #(str "  " (.toString %)) (.getStackTrace cause)))]
+      (say adapter (str/join "\n" msg)))
+      :died)))
+
 (defn wrap-commands [aliases fns]
   (let [alias-re (re-pattern (str "(?i)^(" (str/join "|" aliases) ")[:,]?\\s*(.*)"))
         help     (partial on-help fns)
-        process  (fn [adapter event] (some #(% adapter event) (conj fns help on-unknown)))]
+        process  (fn [adapter event] (some #(run-safe % adapter event) (conj fns help on-unknown)))]
     (fn [adapter event]
       (if (= (:type event) :text)
         (when-let [[_ alias cmd] (re-find alias-re (:text event))]

@@ -125,15 +125,17 @@
   "calc me   <expr> — calculates <expr> (2+2, 200 USD to Rub, 100C to F)"
   [adapter {:keys [type text]}]
   (if (= type :text)
-    (when-let [[_ q] (re-find #"(?i)calc(?:ulate)?(?:\s+me)?\s+(.*)" text)]
-      (let [resp (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q} :user-agent "Mozilla/5.0")
-            lhs   (google-json-attr-str "lhs" resp)
-            rhs   (google-json-attr-str "rhs" resp)
-            error (google-json-attr-str "error" resp)]
-        (if (str/blank? error)
-          (say adapter [lhs " = " rhs])
-          (say adapter ["It’s too hard:" error]))
-        :answered))))
+    (when-let [[_ q] (re-find #"(?i)calc(?:ulate)?(?:\s+me)?\s*(.*)" text)]
+      (if (str/blank? q)
+        (say adapter "Calc you what?")
+        (let [resp (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q} :user-agent "Mozilla/5.0")
+              lhs   (google-json-attr-str "lhs" resp)
+              rhs   (google-json-attr-str "rhs" resp)
+              error (google-json-attr-str "error" resp)]
+          (if (str/blank? error)
+            (say adapter [lhs " = " rhs])
+            (say adapter ["It’s too hard:" error]))
+          :answered)))))
 
 (defn on-badwords [adapter {:keys [type text]}]
   (if (= type :text)
