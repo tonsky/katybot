@@ -3,4 +3,5 @@
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [http.async.client "0.4.0"]  
                  [org.clojure/data.json "0.1.1"]]
+  :repl-init katybot.repl-helper
   :jvm-opts ["-Dfile.encoding=UTF-8"])

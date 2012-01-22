@@ -19,7 +19,6 @@
 (defn- on-help
   "help      — display this help"
   [fns adapter {:keys [type text]}]
-  (btw "Entering help")
   (if (= type :text)
     (when (re-find #"(?i)help" text)
       (let [helps (remove nil? (map #(:doc (meta %)) (conj fns #'on-help)))]

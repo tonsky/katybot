@@ -13,6 +13,8 @@ To run her in Campfire:
     user=> (def token   "...")
     user=> (katybot.campfire/start-campfire account room-id token katybot.scripts/on-event)
 
+If you are using `lein repl` to start repl, `repl_helper.clj` will be loaded automatically with a bunch of useful fns.
+
 #### Testing
 
 To test the bot, use
