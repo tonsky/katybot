@@ -1,5 +1,6 @@
 (ns katybot.core
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            clojure.stacktrace))
 
 (defprotocol Adapter
   (start   [this on-event])

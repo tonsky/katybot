@@ -4,10 +4,10 @@
 [+] Repeat hubot scripts  
 [+] Safe run of custom commands  
 [−] Deal with campfire reconnects  
-[−] Multi-threaded responses  
+[−] Async commands processing  
 [−] Multiple campfire rooms  
 [−] Persistent kv storage  
-[−] Separate texts from scripts logic
+[−] Separate texts from scripts logic  
 [−] Multi-language support  
-[−] Use macro to define commands
+[−] Use macro to define commands  
 [−] Convert protocol to multimethod  
