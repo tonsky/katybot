@@ -3,7 +3,7 @@
 [+] REPL helpers to run configurations  
 [+] Repeat hubot scripts  
 [+] Safe run of custom commands  
-[−] Deal with campfire reconnects  
+[+] Deal with campfire reconnects  
 [−] Async commands processing  
 [−] Multiple campfire rooms  
 [−] Persistent kv storage  

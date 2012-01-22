@@ -51,29 +51,55 @@
     ; TODO parse timestamp and convert to tick
     (update-in [:type] type-from-campfire)))
 
-(defn- user-me-id [client account]
+(defn- user-me [client account]
   (let [url (format "https://%s.campfirenow.com/users/me.json" account)]
-    (get-in (get-json url client) [:user :id])))
+    (get-in (get-json url client) [:user])))
+
+(defn- process-chunk [chunk adapter on-event me-id]
+  (try
+    (loop [items (->> (str/split chunk #"(?<=})\r")
+                      (filter (comp not str/blank?))
+                      (map (comp item-from-campfire json/read-json))
+                      (filter #(not= me-id (:user-id %))))]
+      (when-let [item (first items)]
+        (let [res (on-event adapter item)]
+          ((if res fyi btw) "[ " res " ] " item)
+          (case res
+            (:shutdown :reconnect) res ; sorry, skipping the rest
+            (recur (rest items))))))
+    (catch Exception e
+      :reconnect)))
 
 (defrecord Campfire [client account room]
   Adapter
 
   (start [this on-event]
-    (let [me-id     (user-me-id client account)
-          endpoint  (format "https://streaming.campfirenow.com/room/%s/live.json" room)
-          chunk-seq (httpc/stream-seq client :get endpoint)]
-      (fyi "Logged in as #" me-id " " (:name (user this me-id)))
+    (let [me       (user-me client account)
+          me-id    (:id me)
+          me-name  (:name me)
+          endpoint (format "https://streaming.campfirenow.com/room/%s/live.json" room)]
       (join this)
       (say this "Hi everybody!")
-      (doseq [chunk    (httpc/string chunk-seq)
-              item-str (str/split chunk #"(?<=})\r")
-              :when    (not (str/blank? item-str))
-              :let     [item (item-from-campfire (json/read-json item-str))]
-              :when    (not= (:user-id item) me-id)
-              :let     [res (on-event this item)]]
-        ((if (#{:answered :shutdown} res) fyi btw) "[ " res " ] " item)
-        (if (= res :shutdown)
-          (httpc/cancel chunk-seq)))
+      (loop [stream      (httpc/stream-seq client :get endpoint)
+             chunk-seq   (httpc/string stream)
+             just-logged true]
+        (if just-logged
+          (fyi "Connected to room " room " as " me-name " (" me-id ")"))
+        (if-let [chunk (first chunk-seq)]
+          (do
+            (case (process-chunk chunk this on-event me-id)
+              :shutdown  (httpc/cancel stream) ; escape from the loop
+              :reconnect (recur stream [] false)
+              (recur stream (rest chunk-seq) false)))
+          (do
+            (omg! "Disconnected")
+            (httpc/cancel stream)
+            (Thread/sleep 5000)
+            (fyi "Reconnecting...")
+            (join this) ; in case we were kicked
+            (let [new-stream    (httpc/stream-seq client :get endpoint)
+                  new-chunk-seq (httpc/string new-stream)]
+              (recur new-stream new-chunk-seq true)))))
       (leave this)))
 
   (say [_ msg]
@@ -89,16 +115,18 @@
           user (:user (get-json url client))]
       (user-from-campfire user)))
 
-  (users [_] 
+  (users [_]
     (let [url (format "https://%s.campfirenow.com/room/%s.json" account room)
           room-info (get-json url client)
           users-list (get-in room-info [:room :users])]
       (into {}
-        (for [uc   users-list 
+        (for [uc   users-list
               :let [u (user-from-campfire uc)]]
              [(:id u) u]))))
 )
 
 (defn start-campfire [account room token on-event]
-  (with-open [client (httpc/create-client :user-agent "Katybot-clj/0.1" :auth {:user token :password "x" :preemptive true} )]
+  (with-open [client (httpc/create-client
+                       :user-agent "Katybot-clj/0.1"
+                       :auth {:user token :password "x" :preemptive true})]
     (start (Campfire. client account room) on-event)))
