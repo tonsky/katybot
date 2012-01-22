@@ -40,7 +40,7 @@
   [adapter {:keys [type text user-id]}]
   (when (and (= type :text) (re-find #"(?i)hello|hi" text))
     (let [user-info (user adapter user-id)]
-      (say adapter ["Nice to see you again, " (:name user-info)])
+      (say adapter ["Well, hello there, " (:name user-info)])
       ;(say-img adapter (:avatar user-info))
       :answered)))
 
@@ -90,15 +90,46 @@
           (say adapter [\" q \" " will lose too much in translation to " to]))
       :answered))))
 
+(defn- to-sup [ch]
+  (char
+    (case ch
+      \- 0x207B
+      \+ 0x207A
+      \1 0x00B9
+      \2 0x00B2
+      \3 0x00B3
+      (+ 0x2070 (Character/digit ch 10)))))
+
+(defn- google-unquote [s]
+  (if-let [next-s (condp re-find s
+        #"(.*?)\\x([0-9a-f]{2})(.*)" :>> 
+          (fn [[_ g1 g2 g3]]
+            (str g1 (-> g2 (Integer/parseInt 16) (char)) g3))
+        #"(.*?)&#(\d{2,4});(.*)" :>>
+          (fn [[_ g1 g2 g3]]
+            (str g1 (-> g2 (Integer/parseInt 10) (char)) g3))
+        #"(.*?)<sup>([\-+\d]*)</sup>(.*)" :>>
+          (fn [[_ g1 g2 g3]]
+            (str g1 (apply str (map (comp to-sup char) (.getBytes g2))) g3))
+        nil)]
+    (recur next-s)
+    s))
+
+(defn- google-json-attr-str [a json]
+  (-> (re-pattern (str a "\\s*:\\s*\"(.*?)\""))
+      (re-find json)
+      (second)
+      (google-unquote)))
+
 (defn on-calculate
   "calc me   <expr> — calculates <expr> (2+2, 200 USD to Rub, 100C to F)"
   [adapter {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ q] (re-find #"(?i)calc(?:ulate)?(?:\s+me)?\s+(.*)" text)]
       (let [resp (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q} :user-agent "Mozilla/5.0")
-            lhs   ((re-find #"lhs\s*:\s*\"(.*?)\"" resp) 1)
-            rhs   ((re-find #"rhs\s*:\s*\"(.*?)\"" resp) 1)
-            error ((re-find #"error\s*:\s*\"(.*?)\"" resp) 1)]
+            lhs   (google-json-attr-str "lhs" resp)
+            rhs   (google-json-attr-str "rhs" resp)
+            error (google-json-attr-str "error" resp)]
         (if (str/blank? error)
           (say adapter [lhs " = " rhs])
           (say adapter ["It’s too hard:" error]))
