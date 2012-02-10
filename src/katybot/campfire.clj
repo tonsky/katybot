@@ -1,7 +1,7 @@
 (ns katybot.campfire
-  (:require [http.async.client :as httpc])
-  (:require [clojure.data.json :as json])
-  (:require [clojure.string :as str])
+  (:require [http.async.client :as httpc]
+            [clojure.data.json :as json]
+            [clojure.string :as str])
   (:use [katybot.core]))
 
 (def headers {"Content-Type" "application/json; charset=utf-8"
@@ -27,20 +27,22 @@
       (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
     res))
 
-(defn join [{:keys [account room client]}]
-  (post (format "https://%s.campfirenow.com/room/%s/join.json" account room) client nil)
-  (fyi "Joined a room " room))
+(defn join [{account ::account room ::room client-gen ::client-gen}]
+  (with-open [client (client-gen)]
+    (post (format "https://%s.campfirenow.com/room/%s/join.json" account room) client nil)
+    (fyi "Joined a room " room)))
 
-(defn leave [{:keys [account room client]}]
-  (post (format "https://%s.campfirenow.com/room/%s/leave.json" account room) client nil)
-  (fyi "Leaved a room " room))
+(defn leave [{account ::account room ::room client-gen ::client-gen}]
+  (with-open [client (client-gen)]
+    (post (format "https://%s.campfirenow.com/room/%s/leave.json" account room) client nil)
+    (fyi "Leaved a room " room)))
 
 (defn- user-from-campfire [user]
   (change-keys user :avatar_url :avatar))
 
 (defn type-from-campfire [type]
   (case type
-    "TextMessage"  :text 
+    "TextMessage"  :text
     "EnterMessage" :join
     "LeaveMessage" :leave
     type))
@@ -48,21 +50,22 @@
 (defn- item-from-campfire [item]
   (-> item
     (change-keys :body :text  :user_id :user-id  :created_at :timestamp)
-    ; TODO parse timestamp and convert to tick
+    (update-in [:timestamp] #(.parse (java.text.SimpleDateFormat. "yyyy/MM/dd HH:mm:ss Z") %))
     (update-in [:type] type-from-campfire)))
 
-(defn- user-me [client account]
-  (let [url (format "https://%s.campfirenow.com/users/me.json" account)]
-    (get-in (get-json url client) [:user])))
+(defn- user-me [{account ::account client-gen ::client-gen}]
+  (with-open [client (client-gen)]
+    (let [url (format "https://%s.campfirenow.com/users/me.json" account)]
+      (get-in (get-json url client) [:user]))))
 
-(defn- process-chunk [chunk adapter on-event me-id]
+(defn- process-chunk [chunk robot me-id]
   (try
     (loop [items (->> (str/split chunk #"(?<=})\r")
                       (filter (comp not str/blank?))
                       (map (comp item-from-campfire json/read-json))
                       (filter #(not= me-id (:user-id %))))]
       (when-let [item (first items)]
-        (let [res (on-event adapter item)]
+        (let [res (consider robot item)]
           ((if res fyi btw) "[ " res " ] " item)
           (case res
             (:shutdown :reconnect) res ; sorry, skipping the rest
@@ -70,24 +73,26 @@
     (catch Exception e
       :reconnect)))
 
-(defrecord Campfire [client account room]
-  Adapter
+(defn +campfire-receptor [robot account room token]
+  (let [client-gen (fn [] (httpc/create-client :user-agent "Katybot-clj/0.2" :auth {:user token :password "x" :preemptive true}))]
+    (assoc robot :receptor ::campfire-receptor ::client-gen client-gen ::account account ::room room)))
 
-  (start [this on-event]
-    (let [me       (user-me client account)
+(defmethod listen ::campfire-receptor [{client-gen ::client-gen account ::account room ::room :as robot}]
+  (with-open [client (client-gen)]
+    (let [me       (user-me robot)
           me-id    (:id me)
           me-name  (:name me)
           endpoint (format "https://streaming.campfirenow.com/room/%s/live.json" room)]
-      (join this)
-      (say this "Hi everybody!")
-      (loop [stream      (httpc/stream-seq client :get endpoint)
-             chunk-seq   (httpc/string stream)
-             just-logged true]
-        (if just-logged
+      (join robot)
+      (say robot "Hi everybody!")
+      (loop [stream    (httpc/stream-seq client :get endpoint)
+             chunk-seq (httpc/string stream)
+             just-connected true]
+        (if just-connected
           (fyi "Connected to room " room " as " me-name " (" me-id ")"))
         (if-let [chunk (first chunk-seq)]
           (do
-            (case (process-chunk chunk this on-event me-id)
+            (case (process-chunk chunk robot me-id)
               :shutdown  (httpc/cancel stream) ; escape from the loop
               :reconnect (recur stream [] false)
               (recur stream (rest chunk-seq) false)))
@@ -96,37 +101,34 @@
             (httpc/cancel stream)
             (Thread/sleep 5000)
             (fyi "Reconnecting...")
-            (join this) ; in case we were kicked
+            (join robot) ; in case we were kicked
             (let [new-stream    (httpc/stream-seq client :get endpoint)
                   new-chunk-seq (httpc/string new-stream)]
               (recur new-stream new-chunk-seq true)))))
-      (leave this)))
+      (leave robot))))
 
-  (say [_ msg]
+(defmethod say ::campfire-receptor [{client-gen ::client-gen account ::account room ::room} msg]
+  (with-open [client (client-gen)]
     (let [url (format "https://%s.campfirenow.com/room/%s/speak.json" account room)
           body (json/json-str {:message {:body (apply str msg)}})]
-      (post url client body)))
+      (post url client body))))
 
-  (say-img [this url]
-    (say this [url "#.png"]))
+(defmethod say-img ::campfire-receptor [robot url]
+  (say robot [url "#.png"]))
 
-  (user [_ user-id]
+(defmethod user ::campfire-receptor [{client-gen ::client-gen account ::account} user-id]
+  (with-open [client (client-gen)]
     (let [url  (format "https://%s.campfirenow.com/users/%s.json" account user-id)
           user (:user (get-json url client))]
-      (user-from-campfire user)))
+      (user-from-campfire user))))
 
-  (users [_]
-    (let [url (format "https://%s.campfirenow.com/room/%s.json" account room)
-          room-info (get-json url client)
+(defmethod users ::campfire-receptor [{client-gen ::client-gen account ::account room ::room}]
+  (with-open [client (client-gen)]
+    (let [url        (format "https://%s.campfirenow.com/room/%s.json" account room)
+          room-info  (get-json url client)
           users-list (get-in room-info [:room :users])]
       (into {}
         (for [uc   users-list
               :let [u (user-from-campfire uc)]]
-             [(:id u) u]))))
-)
+             [(:id u) u])))))
 
-(defn start-campfire [account room token on-event]
-  (with-open [client (httpc/create-client
-                       :user-agent "Katybot-clj/0.1"
-                       :auth {:user token :password "x" :preemptive true})]
-    (start (Campfire. client account room) on-event)))

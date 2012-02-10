@@ -4,7 +4,7 @@
   (:require [clojure.data.json :as json])
   (:use [katybot.core]))
 
-(defn http-get [url & {:keys [query user-agent] :or {query {} user-agent "Katybot-clj/0.1"}}]
+(defn http-get [url & {:keys [query user-agent] :or {query {} user-agent "Katybot-clj/0.2"}}]
   (btw "HTTP GET:\n  " url "\n  " query)
   (with-open [client (httpc/create-client :user-agent user-agent)]
     (let [resp   (httpc/await (httpc/GET client url :query query))
@@ -17,31 +17,37 @@
 
 (defn on-stop
   "stop      — ask bot to shutdown gracefully"
-  [adapter {:keys [type text]}]
+  [robot {:keys [type text]}]
   (when (and (= type :text) (re-find #"(?i)stop|shutdown|cancel|exit|quit" text))
-    (say adapter "I’m out")
+    (say robot "I’m out")
     :shutdown))
 
-(defn on-join [adapter {:keys [type user-id]}]
+(defn on-reconnect
+  [robot {:keys [type text]}]
+  (when (and (= type :text) (re-find #"(?i)reconnect" text))
+    (say robot "I’m reconnecting")
+    :reconnect))
+
+(defn on-join [robot {:keys [type user-id]}]
   (if (= type :join)
-    (let [user-info (user adapter user-id)]
-      (say adapter ["Glad to see you again, " (:name user-info)])
+    (let [user-info (user robot user-id)]
+      (say robot ["Glad to see you again, " (:name user-info)])
       :answered)))
 
-(defn on-leave [adapter {:keys [type user-id]}]
+(defn on-leave [robot {:keys [type user-id]}]
   (if (= type :leave)
-    (let [user-info (user adapter user-id)]
-      (say adapter [(:name user-info) " was a good man"])
-      (say adapter "I guess")
+    (let [user-info (user robot user-id)]
+      (say robot [(:name user-info) " was a good man"])
+      (say robot "I guess")
       :answered)))
 
 (defn on-hello
   "hello     — welcome your robot"
-  [adapter {:keys [type text user-id]}]
+  [robot {:keys [type text user-id]}]
   (when (and (= type :text) (re-find #"(?i)hello|hi" text))
-    (let [user-info (user adapter user-id)]
-      (say adapter ["Well, hello there, " (:name user-info)])
-      ;(say-img adapter (:avatar user-info))
+    (let [user-info (user robot user-id)]
+      (say robot ["Well, hello there, " (:name user-info)])
+      ;(say-img robot (:avatar user-info))
       :answered)))
 
 (defn img [q]
@@ -53,29 +59,29 @@
 
 (defn on-images
   "image me  <smth> — display random image from google image search"
-  [adapter {:keys [type text]}]
+  [robot {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ q] (re-find #"(?i)(?:image|img)(?: me)?(.*)" text)]
       (let [img (img q)]
         (if img
-          (say-img adapter (:unescapedUrl img))
-          (say     adapter "I have nothing to show you"))
+          (say-img robot (:unescapedUrl img))
+          (say     robot "I have nothing to show you"))
         :answered))))
 
 (defn on-mustachify
   "mustache  <smbd or url> — try it"
-  [adapter {:keys [type text]}]
+  [robot {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ q] (re-find #"(?i)(?:mo?u)?sta(?:s|c)he?(?: me)?\s+(.*)" text)]
       (let [img-url (if (re-matches #"(?i)^https?://.*" q) q (:unescapedUrl (img q)))]
         (if img-url
-          (say-img adapter (str "http://mustachify.me/" (rand-int 3) "?src=" img-url))
-          (say     adapter "Couldn't find any of his images"))
+          (say-img robot (str "http://mustachify.me/" (rand-int 3) "?src=" img-url))
+          (say     robot "Couldn't find any of his images"))
         :answered))))
 
 (defn on-translate
   "translate [from <lg>] [to <lg>] <phrase> — translates <phrase>, <lg> is two-letter lang code (en, ru, de, fr...)"
-  [adapter {:keys [type text]}]
+  [robot {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ f t q] (re-find #"(?i)translate(?:\s+me)?(?:\s+from\s+([a-z]{2}))?(?:\s+to\s+([a-z]{2}))?\s+(.*)" text)]
       (let [from (if (re-matches #"(?i)[\p{InCyrillic}\d\p{Punct}\s]+" q) "ru" "auto")
@@ -86,8 +92,8 @@
                   :user-agent "Mozilla/5.0")
             res (json/read-json resp)]
         (if-let [translation (get-in res [0 0 0])]
-          (say adapter [translation " is " to " for " \" q \" " (" (res 1) ")"])
-          (say adapter [\" q \" " will lose too much in translation to " to]))
+          (say robot [translation " is " to " for " \" q \" " (" (res 1) ")"])
+          (say robot [\" q \" " will lose too much in translation to " to]))
       :answered))))
 
 (defn- to-sup [ch]
@@ -123,35 +129,42 @@
 
 (defn on-calculate
   "calc me   <expr> — calculates <expr> (2+2, 200 USD to Rub, 100C to F)"
-  [adapter {:keys [type text]}]
+  [robot {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ q] (re-find #"(?i)calc(?:ulate)?(?:\s+me)?\s*(.*)" text)]
       (if (str/blank? q)
-        (say adapter "Calc you what?")
-        (let [resp (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q} :user-agent "Mozilla/5.0")
+        (say robot "Calc you what?")
+        (let [resp  (http-get "http://www.google.com/ig/calculator" :query {:hl "en"  :q q} :user-agent "Mozilla/5.0")
               lhs   (google-json-attr-str "lhs" resp)
               rhs   (google-json-attr-str "rhs" resp)
               error (google-json-attr-str "error" resp)]
           (if (str/blank? error)
-            (say adapter [lhs " = " rhs])
-            (say adapter ["It’s too hard:" error]))
+            (say robot [lhs " = " rhs])
+            (say robot ["It’s too hard:" error]))
           :answered)))))
 
-(defn on-badwords [adapter {:keys [type text]}]
+(defn on-badwords [robot {:keys [type text]}]
   (if (= type :text)
     (when-let [[_ bw] (re-find #"(?i)(fuck|ass|\b(?:gay|pussy)\b)" text)]
-      (say adapter ["Please don’s say such things: " bw])
+      (say robot ["Please don’s say such things: " bw])
       nil)))
 
-(def on-event
-  (wrap-commands 
-    [ "/" "Kate" "Katy" ]
-    [ #'on-stop
-      #'on-join
-      #'on-leave
-      #'on-badwords
-      #'on-calculate
-      #'on-translate
-      #'on-images
-      #'on-mustachify
-      #'on-hello]))
+(defn +test-brain
+  ([robot] (+test-brain robot ["/" "Kate" "Katy"]))
+  ([robot aliases]
+    (assoc robot 
+      :brain ::test-brain 
+      ::aliases aliases
+      ::fns [ #'on-stop
+              #'on-reconnect
+              #'on-join
+              #'on-leave
+              #'on-badwords
+              #'on-calculate
+              #'on-translate
+              #'on-images
+              #'on-mustachify
+              #'on-hello ])))
+
+(defmethod consider [::test-brain :text] [{aliases ::aliases fns ::fns :as robot} event]
+  ((wrap-commands aliases fns) robot event))

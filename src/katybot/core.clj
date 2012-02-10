@@ -2,12 +2,15 @@
   (:require [clojure.string :as str]
             clojure.stacktrace))
 
-(defprotocol Adapter
-  (start   [this on-event])
-  (say     [this msg])
-  (say-img [this url])
-  (user    [this user-id])
-  (users   [this]))
+(defmulti listen                        :receptor)
+(defmulti say      (fn [robot msg]     (:receptor robot)))
+(defmulti say-img  (fn [robot url]     (:receptor robot)))
+(defmulti user     (fn [robot user-id] (:receptor robot)))
+(defmulti users                         :receptor)
+(defmulti memorize (fn [robot k v]     (:memory robot)))
+(defmulti recall   (fn [robot k]       (:memory robot)))
+(defmulti consider (fn [robot event]   [(:brain robot) (:type event)]))
+
 
 (defn change-keys [m & keys]
   (reduce (fn [acc [old new]] (dissoc (assoc acc new (m old)) old)) m (apply hash-map keys)))
@@ -19,36 +22,36 @@
 
 (defn- on-help
   "help      — display this help"
-  [fns adapter {:keys [type text]}]
+  [fns robot {:keys [type text]}]
   (if (= type :text)
     (when (re-find #"(?i)help" text)
       (let [helps (remove nil? (map #(:doc (meta %)) (conj fns #'on-help)))]
-        (say adapter (str/join "\n" helps))
+        (say robot (str/join "\n" helps))
       :answered))))
 
-(defn- on-unknown [adapter {:keys [type text]}]
+(defn- on-unknown [robot {:keys [type text]}]
   (when (= type :text)
-    (say adapter ["I don’t get it: " text])
+    (say robot ["I don’t get it: " text])
     :answered))
 
-(defn- run-safe [f adapter event]
+(defn- run-safe [f robot event]
   (try
-    (f adapter event)
+    (f robot event)
     (catch Exception e
       (let [cause (clojure.stacktrace/root-cause e)
             msg (into ["I’m broke and that’s why:" 
                        ""
                        (.toString cause)] 
                       (map #(str "  " (.toString %)) (.getStackTrace cause)))]
-      (say adapter (str/join "\n" msg)))
+        (say robot (str/join "\n" msg)))
       :died)))
 
 (defn wrap-commands [aliases fns]
   (let [alias-re (re-pattern (str "(?i)^(" (str/join "|" aliases) ")[:,]?\\s*(.*)"))
         help     (partial on-help fns)
-        process  (fn [adapter event] (some #(run-safe % adapter event) (conj fns help on-unknown)))]
-    (fn [adapter event]
+        process  (fn [robot event] (some #(run-safe % robot event) (conj fns help on-unknown)))]
+    (fn [robot event]
       (if (= (:type event) :text)
         (when-let [[_ alias cmd] (re-find alias-re (:text event))]
-          (process adapter (assoc event :text cmd :alias alias)))
-        (process adapter event)))))
+          (process robot (assoc event :text cmd :alias alias)))
+        (process robot event)))))

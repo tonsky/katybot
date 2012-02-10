@@ -4,10 +4,16 @@
 [+] Repeat hubot scripts  
 [+] Safe run of custom commands  
 [+] Deal with campfire reconnects  
-[−] Async commands processing  
-[−] Multiple campfire rooms  
-[−] Persistent kv storage  
-[−] Separate texts from scripts logic  
-[−] Multi-language support  
+[−] Async commands processing (send-off to agent, monitor state via listener?)  
+[+] In-memory kv storage  
+[?] Persistent kv storage  
+[+] Convert protocols to multimethods  
+[−] Return continuation from accept function  
 [−] Use macro to define commands  
-[−] Convert protocol to multimethod  
+[−] Reorganize scripts to separate files  
+[?] Separate texts from scripts logic  
+[?] Multi-language support  
+[−] Unittests  
+[?] Do smth beautiful with httpc/client  
+[?] Multiple campfire rooms  
+[?] Scan ns searching for tests  
