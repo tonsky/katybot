@@ -2,7 +2,8 @@
   (:require [http.async.client :as httpc]
             [clojure.data.json :as json]
             [clojure.string :as str])
-  (:use [katybot.core]))
+  (:use katybot.core
+        katybot.utils))
 
 (def headers {"Content-Type" "application/json; charset=utf-8"
               "Accept" "application/json"})

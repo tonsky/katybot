@@ -1,6 +1,7 @@
 (ns katybot.console
   (:require [clojure.string :as str])
-  (:use [katybot.core]))
+  (:use katybot.core
+        katybot.utils))
 
 (defn +console-receptor [robot]
   (assoc robot :receptor ::console-receptor))
@@ -16,7 +17,7 @@
   (printf "\u001b[m") (flush))
 
 (defmethod say ::console-receptor [_ msg]
-  (println "\u001b[1;36m<" (apply str msg) "\u001b[m"))
+  (println "\u001b[1;36m<" (str/replace (apply str msg) "\n" "\n  ") "\u001b[m"))
 
 (defmethod say-img ::console-receptor [_ url]
   (println "\u001b[1;35m[" url "]\u001b[m"))

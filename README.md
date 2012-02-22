@@ -1,19 +1,21 @@
 #### Starting
 
-To run Katybot in repl:
+Best way to start Katybot is to use `lein repl`, this way `repl_helper.clj` will be loaded automatically with a bunch of useful fns.
 
-    user=> (load "katybot/core" "katybot/scripts" "katybot/console")
-    user=> (katybot.core/start (katybot.console.Console.) katybot.scripts/on-event)
+To test Katybot in console:
 
-To run her in Campfire:
+    katybot.repl-helper=> (test-console)
 
-    user=> (load "katybot/core" "katybot/scripts" "katybot/campfire")
-    user=> (def account "...") ; account is your third-level domain on campfirenow.com
-    user=> (def room-id "...")
-    user=> (def token   "...")
-    user=> (katybot.campfire/start-campfire account room-id token katybot.scripts/on-event)
+To run her in Campfire, define following env variables before runnig `lein repl`:
 
-If you are using `lein repl` to start repl, `repl_helper.clj` will be loaded automatically with a bunch of useful fns.
+    ~/katybot/$ export KATYBOT_CAMPFIRE_ACCOUNT=... # account is your third-level domain on campfirenow.com
+    ~/katybot/$ export KATYBOT_CAMPFIRE_ROOM   =...
+    ~/katybot/$ export KATYBOT_CAMPFIRE_TOKEN  =...
+    ~/katybot/$ export KATYBOT_CAMPFIRE_ALIASES="/|Kat[ey]|robot"
+    ~/katybot/$ lein repl
+
+    katybot.repl-helper=> (test-campfire)
+
 
 #### Testing
 
@@ -31,13 +33,21 @@ To see list of all available command use `help`:
       calc me   — ...
       ...
 
-`katybot.scripts/on-event` uses `["/" "Kate" "Katy"]` as its name aliases, so bot will respond to any commands starting with these words.
 
 #### Stopping
 
 To make her exit, tell her `stop`:
 
     > /stop
-    < I'm out
+    < I’m out
 
 or type an empty string (console only).
+
+
+#### Extending
+
+Take a look at `reflexes` directory for hints on how to implement your own extension scripts. `katybot.repl-helper` scans `reflexes` and `reflexes/ru` directroies by default and loads every `.clj` file as an robot’s extension script.
+
+Extensions could be reloaded without stopping runnig robot by evaluating
+
+    katybot.repl-helper=> (reload-reflexes)
