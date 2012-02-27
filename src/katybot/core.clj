@@ -2,6 +2,8 @@
   (:require [clojure.string :as str]
             clojure.stacktrace))
 
+(def version "Katybot-clj/0.3")
+
 (defmulti listen                        :receptor)
 (defmulti say      (fn [robot msg]     (:receptor robot)))
 (defmulti say-img  (fn [robot url]     (:receptor robot)))

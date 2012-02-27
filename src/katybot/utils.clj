@@ -1,7 +1,8 @@
 (ns katybot.utils
   (:require [http.async.client :as httpc]
             [clojure.data.json :as json]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            katybot.core))
 
 (defn regex? [obj]
   (instance? java.util.regex.Pattern obj))
@@ -37,7 +38,7 @@
     (fn [[_ keys]]
       (get-in vals (read-string keys) "<NOT FOUND>"))))
 
-(defn http-get [url & {:keys [query user-agent] :or {query {} user-agent "Katybot-clj/0.2"}}]
+(defn http-get [url & {:keys [query user-agent] :or {query {} user-agent katybot.core/version}}]
   (btw "HTTP GET:\n  " url "\n  " query)
   (with-open [client (httpc/create-client :user-agent user-agent)]
     (let [resp   (httpc/await (httpc/GET client url :query query))

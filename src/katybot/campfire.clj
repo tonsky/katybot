@@ -75,7 +75,7 @@
       :reconnect)))
 
 (defn +campfire-receptor [robot account room token]
-  (let [client-gen (fn [] (httpc/create-client :user-agent "Katybot-clj/0.2" :auth {:user token :password "x" :preemptive true}))]
+  (let [client-gen (fn [] (httpc/create-client :user-agent version :auth {:user token :password "x" :preemptive true}))]
     (assoc robot :receptor ::campfire-receptor ::client-gen client-gen ::account account ::room room)))
 
 (defmethod listen ::campfire-receptor [{client-gen ::client-gen account ::account room ::room :as robot}]
