@@ -2,30 +2,28 @@
   (:use katybot.utils
         katybot.campfire-api))
 
+(def ^:dynamic *room*    "483271")
+(def ^:dynamic *account* "katybot")
+(def ^:dynamic *token*   "036e950c60968b68b8e9f59039998fea91103ddd")
+
 (defn reload []
   (fyi "Loading campfire_api")
   (load "campfire_api")
-  (use 'katybot.campfire-api))
-
-(defn redef-api []
+  (use 'katybot.campfire-api)
   (def api
-    (campfire-async-api "katybot" "036e950c60968b68b8e9f59039998fea91103ddd")))
+    (campfire-async-api *account* *token*)))
 
 (reload)
-(let [v (def api)]
-  (when-not (.hasRoot v)
-    (redef-api)))
 
 (defn test-join []
-  (join api "483271"))
+  (join api *room*))
 
 (defn test-leave []
-  (leave api "483271"))
+  (leave api *room*))
 
 (defn test-listen []
-  (join api "483271")
   (def agnt
-    (listen api "483271" (fn [& args] (apply fyi "Callback: " args)))))
+    (listen api *room* (fn [body] (fyi "Callback: " body)))))
 
 (defn test-stop-listening []
-  (stop-listening api "483271"))
+  (stop-listening api *room*))

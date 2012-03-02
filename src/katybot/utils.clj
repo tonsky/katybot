@@ -72,3 +72,14 @@
     (reify java.io.FileFilter
       (accept [_ f] (.isDirectory f))))))
 
+(defn now []
+  (-> (java.util.Date.) .getTime))
+
+(defn schedule
+  "Schedule function for repeating execution.
+   'task' is a zero-arg function, returning :continue to continue executing or nil to stop"
+  [task period]
+  (let [timer      (java.util.Timer. true)
+        timer-task (proxy [java.util.TimerTask] [] 
+                     (run [] (when-not (task) (.cancel this))))]
+    (.scheduleAtFixedRate timer timer-task period period)))

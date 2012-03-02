@@ -1,4 +1,4 @@
-(defproject katybot "0.1.0-SNAPSHOT"
+(defproject katybot "0.3.0-SNAPSHOT"
   :description "Campfire bot written in clojure"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [http.async.client "0.4.0"]
