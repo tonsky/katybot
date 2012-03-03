@@ -1,10 +1,10 @@
 #### Starting
 
-Best way to start Katybot is to use `lein repl`, this way `repl_helper.clj` will be loaded automatically with a bunch of useful fns.
+Best way to start Katybot is to use `lein repl`, this way `repl.clj` will be loaded automatically with a bunch of useful fns.
 
 To test Katybot in console:
 
-    katybot.repl-helper=> (test-console)
+    katybot.repl=> (test-console)
 
 To run her in Campfire, define following env variables before runnig `lein repl`:
 
@@ -14,7 +14,7 @@ To run her in Campfire, define following env variables before runnig `lein repl`
     ~/katybot/$ export KATYBOT_CAMPFIRE_ALIASES="/|Kat[ey]|robot"
     ~/katybot/$ lein repl
 
-    katybot.repl-helper=> (test-campfire)
+    katybot.repl=> (test-campfire)
 
 
 #### Testing
@@ -50,4 +50,4 @@ Take a look at `reflexes` directory for hints on how to implement your own exten
 
 Extensions could be reloaded without stopping runnig robot by evaluating
 
-    katybot.repl-helper=> (reload-reflexes)
+    katybot.repl=> (reload-reflexes)

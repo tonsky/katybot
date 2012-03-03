@@ -46,8 +46,8 @@
 (defn consider-event [robot {:keys [type text] :as event} aliases reflexes]
   (try
     (if-let [[_ salutation command] (and (= type :text) text (re-matches aliases text))]
-      (let [event (assoc event :type :command :text command :salutation salutation)]
-        (or (go-over robot event reflexes)
+      (let [command (assoc event :type :command :text command :salutation salutation)]
+        (or (go-over robot command reflexes)
             (say robot "I don't get it, sorry")))
       (go-over robot event reflexes))
     (catch Exception e

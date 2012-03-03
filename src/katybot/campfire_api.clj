@@ -12,6 +12,7 @@
   (stop-listening [_ room])
   (leave     [_ room])
   (user-info [_ user])
+  (user-me   [_])
   (room-info [_ room]))
 
 (def ^:dynamic *check-interval* 5000)
@@ -27,27 +28,32 @@
 (declare post)
 
 (defn campfire-async-api [account token]
-  (let [client (httpc/create-client
+  (let [create-client #(httpc/create-client
           ;:proxy {:host "127.0.0.1" :port 8443 :protocol :https}
-          :auth  {:user token :password "x" :preemptive true})
+          :auth {:user token :password "x" :preemptive true}
+          :connection-timeout   3000
+          :request-timeout      5000
+          :idle-in-pool-timeout 5000)
         baseurl (format "https://%s.campfirenow.com" account)
         connections (ref {})]
     (reify
       CampfireAPI
 
       (join [_ room]
-        (post (format "%s/room/%s/join.json" baseurl room) client nil)
-        (fyi "Joined a room " room))
+        (with-open [client (create-client)]
+          (post (format "%s/room/%s/join.json" baseurl room) client nil)
+          (fyi "Joined a room " room)))
 
       (say [_ room msg]
-        (let [url (format "%s/room/%s/speak.json" baseurl room)
-              body (json/json-str {:message {:body (apply str msg)}})]
-          (post url client body)))
+        (with-open [client (create-client)]
+          (let [url (format "%s/room/%s/speak.json" baseurl room)
+                body (json/json-str {:message {:body (apply str msg)}})]
+            (post url client body))))
 
       (listen [api room msg-callback]
         (dosync
           (stop-listening api room)
-          (let [agnt (room-agent api client room msg-callback)]
+          (let [agnt (room-agent api (create-client) room msg-callback)]
             (alter connections assoc room agnt)
             agnt)))
 
@@ -59,16 +65,24 @@
             old-agnt)))
 
       (leave [_ room]
-        (post (format "%s/room/%s/leave.json" baseurl room) client nil)
-        (fyi "Leaved a room " room))
+        (with-open [client (create-client)]
+          (post (format "%s/room/%s/leave.json" baseurl room) client nil)
+          (fyi "Leaved a room " room)))
 
       (user-info [_ user]
-        (let [url  (format "%s/users/%s.json" baseurl user)]
-          (:user (get-json url client))))
+        (with-open [client (create-client)]
+          (let [url  (format "%s/users/%s.json" baseurl user)]
+            (:user (get-json url client)))))
+
+      (user-me [_]
+        (with-open [client (create-client)]
+          (let [url  (format "%s/users/me.json" baseurl)]
+            (:user (get-json url client)))))
 
       (room-info [_ room]
-        (let [url  (format "%s/room/%s.json" baseurl room)]
-          (:room (get-json url client)))))))
+        (with-open [client (create-client)]
+          (let [url  (format "%s/room/%s.json" baseurl room)]
+            (:room (get-json url client))))))))
 
 (defn- debug [state module & msg]
   (when (:debug state)
@@ -82,6 +96,7 @@
 (defn- part-callback [msg-callback agnt state baos]
   (debug @agnt "callback" "got part \"" baos "\"")
   (send agnt touch :listening)
+  ; TODO client callback thread: if msg-callback will take long enough, watchman may restart client
   (let [body (.toString baos "UTF-8")]
     (if (not (str/blank? body))           ; filtering keep-alive " " messages
       (doseq [msg (str/split body #"\r")] ; splitting coerced message bodies
@@ -89,6 +104,7 @@
           (msg-callback (json/read-json msg))
           (catch Exception e
             (omg! "Callback call failed: " e))))))
+  (send agnt touch :listening)
   [baos :continue])
 
 (defn- err-callback [agnt resp thrwbl]
@@ -130,9 +146,10 @@
 
 (defn finish [state]
   (debug state "agent" "finish")
-  (-> state
-    disconnect
-    (assoc :phase :finished)))
+  (with-open [client (:client state)]
+    (-> state
+      disconnect
+      (assoc :phase :finished))))
 
 (defn- doctor [agnt e]
   "Fix agent if exception was thrown in agent thread"

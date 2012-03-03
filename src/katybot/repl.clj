@@ -1,4 +1,4 @@
-(ns katybot.repl-helper
+(ns katybot.repl
   (:use katybot.utils)
   (:require [clojure.string :as str]))
 
@@ -20,9 +20,9 @@
     (load-dir (file-child dir "reflexes/ru"))))
 
 (defn reload-all []
-  (fyi "Loading repl_helper")
-  (load "repl_helper")
-  (use 'katybot.repl-helper))
+  (fyi "Loading repl")
+  (load "repl")
+  (use 'katybot.repl))
 
 (reload-robot)
 (reload-reflexes)
@@ -40,7 +40,7 @@
     (+campfire-receptor (env "KATYBOT_CAMPFIRE_ACCOUNT")
                         (env "KATYBOT_CAMPFIRE_ROOM")
                         (env "KATYBOT_CAMPFIRE_TOKEN"))
-    (+global-brain (env "KATYBOT_CAMPFIRE_ALIASES"))
+    (+global-brain [(env "KATYBOT_CAMPFIRE_ALIASES")])
     (listen)))
 
 (defn test-campfire-bg []
