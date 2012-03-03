@@ -24,7 +24,9 @@
   (let [old (get-in m keys default)]
     (assoc-in m keys (f old))))
 
-(defn log  [& msg] (println (apply str msg)))
+(defn log  [& msg] 
+  (let [ts (-> (java.text.SimpleDateFormat. "MMM dd HH:mm:ss") (.format (java.util.Date.)))]
+    (println (apply str "\u001b[1;30m" ts "\u001b[m " msg))))
 (defn btw  [& msg] (log "\u001b[1;30m" (apply str msg) "\u001b[m"))
 (defn fyi  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
 (defn omg! [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))

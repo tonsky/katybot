@@ -122,6 +122,7 @@
   state)
 
 (defn reconnect [state]
+  (fyi "Reconnecting to room " (:room state) "...")
   (debug state "agent" "reconnecting from " (:phase state))
   (-> state
     disconnect
@@ -134,6 +135,7 @@
     (assoc :phase :finished)))
 
 (defn- doctor [agnt e]
+  "Fix agent if exception was thrown in agent thread"
   (omg! "Exception in room-agent " (:room @agnt) ": " e)
   (send agnt touch :broken))
 
@@ -144,8 +146,10 @@
     (debug state "watchman" "agent is " phase ", " delay "ms since last activity")
     (cond
       (= phase :finished) nil ; stopping watchman
-      (> delay *stuck-timeout*)
-        (do (send agnt reconnect) :continue)
+      (> delay *stuck-timeout*) (do
+        (when (= phase :listening) (omg! "Fuck - we are stuck"))
+        (send agnt reconnect)
+        :continue)
       :else :continue)))
 
 (defn- logger [room _ agnt old-state new-state]

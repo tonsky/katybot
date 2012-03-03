@@ -27,4 +27,5 @@
       (listen api *room* (fn [body] (fyi "Callback: " body))))))
 
 (defn test-stop-listening []
-  (stop-listening api *room*))
+  (stop-listening api *room*)
+  :stopped)
