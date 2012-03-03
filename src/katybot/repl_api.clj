@@ -22,8 +22,9 @@
   (leave api *room*))
 
 (defn test-listen []
-  (def agnt
-    (listen api *room* (fn [body] (fyi "Callback: " body)))))
+  (binding [katybot.campfire-api/*debug* true]
+    (def agnt
+      (listen api *room* (fn [body] (fyi "Callback: " body))))))
 
 (defn test-stop-listening []
   (stop-listening api *room*))

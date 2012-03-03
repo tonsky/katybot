@@ -3,7 +3,7 @@
 [+] REPL helpers to run configurations  
 [+] Repeat hubot scripts  
 [+] Safe run of custom commands  
-[−] Deal with campfire reconnects  
+[+] Deal with campfire reconnects  
 [−] Async commands processing (send-off to agent, monitor state via listener?)  
 [+] In-memory kv storage  
 [?] Persistent kv storage  
@@ -13,6 +13,6 @@
 [+] Separate texts from scripts logic  
 [+] Multi-language support  
 [−] Unittests  
-[?] Do smth beautiful with httpc/client  
+[+] Do smth beautiful with httpc/client  
 [?] Multiple campfire rooms  
-[+] Scan dir searching for tests  
+[+] Scan dir searching for scripts  

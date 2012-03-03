@@ -7,8 +7,8 @@
 
 (defprotocol CampfireAPI
   (join      [_ room])
-  (listen    [_ room msg-callback])
   (say       [_ room msg])
+  (listen    [_ room msg-callback])
   (stop-listening [_ room])
   (leave     [_ room])
   (user-info [_ user])
@@ -16,9 +16,10 @@
 
 (def ^:dynamic *check-interval* 5000)
 (def ^:dynamic *stuck-timeout* 10000)
-(def ^:dynamic *headers*   {"Content-Type" "application/json; charset=utf-8"
-                            "Accept"       "application/json"})
+(def ^:dynamic *headers* {"Content-Type" "application/json; charset=utf-8"
+                          "Accept"       "application/json"})
 (def ^:dynamic *user-agent* "Katybot")
+(def ^:dynamic *debug* false)
 
 (declare room-agent)
 (declare finish)
@@ -33,53 +34,77 @@
         connections (ref {})]
     (reify
       CampfireAPI
+
       (join [_ room]
         (post (format "%s/room/%s/join.json" baseurl room) client nil)
         (fyi "Joined a room " room))
+
+      (say [_ room msg]
+        (let [url (format "%s/room/%s/speak.json" baseurl room)
+              body (json/json-str {:message {:body (apply str msg)}})]
+          (post url client body)))
+
       (listen [api room msg-callback]
         (dosync
           (stop-listening api room)
           (let [agnt (room-agent api client room msg-callback)]
             (alter connections assoc room agnt)
             agnt)))
-      (say       [_ room msg] :nop)
+
       (stop-listening [_ room]
         (dosync
           (when-let [old-agnt (@connections room)]
             (send old-agnt finish)
-            (alter connections dissoc room))))
-      (leave     [_ room]
+            (alter connections dissoc room)
+            old-agnt)))
+
+      (leave [_ room]
         (post (format "%s/room/%s/leave.json" baseurl room) client nil)
         (fyi "Leaved a room " room))
-      (user-info [_ user] :nop)
-      (room-info [_ room] :nop))))
 
-(defn touch [state phase]
+      (user-info [_ user]
+        (let [url  (format "%s/users/%s.json" baseurl user)]
+          (:user (get-json url client))))
+
+      (room-info [_ room]
+        (let [url  (format "%s/room/%s.json" baseurl room)]
+          (:room (get-json url client)))))))
+
+(defn- debug [state module & msg]
+  (when (:debug state)
+    (btw "[" (:room state) " " module "] " (apply str msg))))
+
+(defn- touch [state phase]
   (if (= :finished (:phase state))
     state
     (assoc state :phase phase :last-accessed (now))))
 
-(defn callback [msg-callback agnt state baos]
-  (btw "[callback] part \"" baos "\"")
+(defn- part-callback [msg-callback agnt state baos]
+  (debug @agnt "callback" "got part \"" baos "\"")
   (send agnt touch :listening)
   (let [body (.toString baos "UTF-8")]
     (if (not (str/blank? body))           ; filtering keep-alive " " messages
       (doseq [msg (str/split body #"\r")] ; splitting coerced message bodies
-        (msg-callback (json/read-json msg)))))
+        (try
+          (msg-callback (json/read-json msg))
+          (catch Exception e
+            (omg! "Callback call failed: " e))))))
   [baos :continue])
 
-(defn err-callback [agnt resp thrwbl]
-  (omg! "[callback] error\n" resp "\n" thrwbl)
+(defn- err-callback [agnt resp thrwbl]
+  (if (= (class thrwbl) java.util.concurrent.CancellationException) ; normal finish
+    (debug @agnt "callback" thrwbl)
+    (omg! "Campfire connection error: " thrwbl))
   (send agnt touch :broken)
   thrwbl)
 
-(defn done-callback [agnt resp]
-  (omg! "[callback] done\n" resp)
+(defn- done-callback [agnt resp]
+  (omg! "Campfire connection closed by remote host")
   (send agnt touch :dropped)
   [true :continue])
 
 (defn connect [state]
-  (btw "[agnt] connect")
+  (debug state "agent" "connecting")
   (let [{:keys [room api client msg-callback]} state
         url (format "https://streaming.campfirenow.com/room/%s/live.json" room)]
     (join api room) ; just in case we were kicked
@@ -88,49 +113,51 @@
                :error     (partial err-callback  *agent*)})]
       (-> state
         (touch :listening)
-        (assoc :resp (httpc/request-stream client :get url (partial callback msg-callback *agent*)))))))
+        (assoc :resp (httpc/request-stream client :get url (partial part-callback msg-callback *agent*)))))))
 
 (defn disconnect [state]
-  (btw "[agnt] disconnect")
+  (debug state "agent" "disconnecting")
   (if (= (:phase state) :listening)
     (httpc/cancel (:resp state)))
   state)
 
 (defn reconnect [state]
-  (btw "[agnt] reconnect " (:phase state))
+  (debug state "agent" "reconnecting from " (:phase state))
   (-> state
     disconnect
     connect))
 
 (defn finish [state]
-  (btw "[agnt] finish")
+  (debug state "agent" "finish")
   (-> state
     disconnect
     (assoc :phase :finished)))
 
-(defn doctor [agnt e]
-  (omg! "[doctor] " e)
+(defn- doctor [agnt e]
+  (omg! "Exception in room-agent " (:room @agnt) ": " e)
   (send agnt touch :broken))
 
-(defn watchman [agnt]
-  "Check agnt status every second and restart if it stuck"
-  (let [{:keys [phase resp last-accessed]} @agnt
+(defn- watchman [agnt]
+  "Check agent status every *check-interval* ms and restart if it stuck"
+  (let [{:keys [phase resp last-accessed] :as state} @agnt
         delay (- (now) last-accessed)]
-    (btw "[watchman] " phase)
+    (debug state "watchman" "agent is " phase ", " delay "ms since last activity")
     (cond
       (= phase :finished) nil ; stopping watchman
       (> delay *stuck-timeout*)
         (do (send agnt reconnect) :continue)
       :else :continue)))
 
-(defn logger [room _ agnt old-state new-state]
-  (btw "[logger-" room "] " (:phase old-state) " -> " (:phase new-state)))
+(defn- logger [room _ agnt old-state new-state]
+  (when (not= (:phase old-state) (:phase new-state))
+    (debug new-state "logger" (:phase old-state) " -> " (:phase new-state))))
 
 (defn room-agent [api client room msg-callback]
   (let [agnt (agent {:api    api
                      :client client
                      :room   room
-                     :msg-callback msg-callback}
+                     :msg-callback msg-callback
+                     :debug *debug*}
                     :error-handler doctor
                     :clear-actions true)]
     (schedule (partial watchman agnt) *check-interval*)
