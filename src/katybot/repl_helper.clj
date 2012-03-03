@@ -34,9 +34,6 @@
     (+global-brain ["/" "Katy" "Kate" "Катя"])
     (listen)))
 
-(defn- env [v]
-  (-> (System/getenv) (.get v)))
-
 (defn test-campfire []
   (-> {}
     (+atom-memory)

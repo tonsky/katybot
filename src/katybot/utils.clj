@@ -85,3 +85,6 @@
         timer-task (proxy [java.util.TimerTask] [] 
                      (run [] (when-not (task) (.cancel this))))]
     (.scheduleAtFixedRate timer timer-task period period)))
+
+(defn env [v]
+  (-> (System/getenv) (.get v)))
