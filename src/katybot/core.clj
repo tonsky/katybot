@@ -1,9 +1,6 @@
-(ns katybot.core
-  (:require [clojure.string :as str]
-            clojure.stacktrace))
+(ns katybot.core)
 
 (def version "Katybot-clj/0.3")
-
 (defn new-robot [] {})
 
 (defmulti listen                        :receptor)

@@ -15,3 +15,4 @@
 [−] Unittests  
 [+] Do smth beautiful with httpc/client  
 [+] Scan dir searching for scripts  
+[−] Watch scripts dir for changes  

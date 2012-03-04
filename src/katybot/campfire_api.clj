@@ -31,9 +31,8 @@
   (let [create-client #(httpc/create-client
           ;:proxy {:host "127.0.0.1" :port 8443 :protocol :https}
           :auth {:user token :password "x" :preemptive true}
-          :connection-timeout   3000
-          :request-timeout      5000
-          :idle-in-pool-timeout 5000)
+          :connection-timeout 3000
+          :request-timeout   -1)
         baseurl (format "https://%s.campfirenow.com" account)
         connections (ref {})]
     (reify
@@ -91,7 +90,7 @@
 (defn- touch [state phase]
   (if (= :finished (:phase state))
     state
-    (assoc state :phase phase :last-accessed (now))))
+    (assoc state :phase phase, :last-accessed (now))))
 
 (defn- part-callback [msg-callback agnt state baos]
   (debug @agnt "callback" "got part \"" baos "\"")
@@ -192,6 +191,7 @@
   (let [resp   (httpc/await (httpc/GET client url 
                               :headers *headers*
                               :user-agent *user-agent*
+                              :timeout *stuck-timeout*
                               :query (apply hash-map query)))
         status (:code (httpc/status resp))
         res    (httpc/string resp)]
@@ -205,6 +205,7 @@
   (let [resp (httpc/await (httpc/POST client url
                             :body body
                             :headers *headers*
+                            :timeout *stuck-timeout*
                             :user-agent *user-agent*))
         status (:code (httpc/status resp))
         res (httpc/string resp)]

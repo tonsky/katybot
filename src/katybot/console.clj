@@ -6,7 +6,7 @@
 (defn +console-receptor [robot]
   (assoc robot
     :receptor ::console-receptor
-    ::running (atom true)))
+    ::running (promise)))
 
 (defmethod listen ::console-receptor [robot]
   (printf "\u001b[1;32m> ") (flush)
@@ -14,7 +14,7 @@
           :let [event {:type :text, :text line, :user-id 0, :timestamp (java.util.Date.)}
                 action (consider robot event)]
           :while (not (str/blank? line))
-          :while @(::running robot)]
+          :while (not (realized? (::running robot)))]
     (printf "\u001b[1;32m> ") (flush))
   (printf "\u001b[m") (flush))
 
@@ -31,4 +31,4 @@
   [(user robot 0) (user robot 1) (user robot 2)])
 
 (defmethod shutdown ::console-receptor [robot]
-  (swap! (::running robot) (constantly false)))
+  (deliver (::running robot) false))

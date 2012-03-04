@@ -17,8 +17,13 @@
         (recur (conj res f) ps fs)
         (recur (conj res nil) ps (cons f fs))))))
 
-(defn change-keys [m & keys]
-  (reduce (fn [acc [old new]] (dissoc (assoc acc new (m old)) old)) m (apply hash-map keys)))
+(defn change-keys [m & {:as keys}]
+  (reduce
+    (fn [acc [old new]]
+      (-> acc
+        (assoc new (m old))
+        (dissoc old)))
+    m keys))
 
 (defn log  [& msg] 
   (let [ts (-> (java.text.SimpleDateFormat. "MMM dd HH:mm:ss") (.format (java.util.Date.)))]
@@ -26,10 +31,6 @@
 (defn btw  [& msg] (log "\u001b[1;30m" (apply str msg) "\u001b[m"))
 (defn fyi  [& msg] (log "\u001b[1;32m" (apply str msg) "\u001b[m"))
 (defn omg! [& msg] (log "\u001b[1;31m" (apply str msg) "\u001b[m"))
-
-(defn subs+ [s start end]
-  (let [e (if (neg? end) (+ (count s) end) end)]
-    (subs s start e)))
 
 (defn format+ [s vals]
   (str/replace s #"(\[.+?\])"

@@ -32,8 +32,8 @@
       (register-reflex '~name))))
 
 (defn- go-over [robot event reflexes]
-  (->> (map #(% robot event) reflexes)
-       (apply max-key #(get {:shutdown 100 :reconnect 50 :answered 10 nil 0} % 25))))
+  (some identity (for [reflex reflexes]
+                      (reflex robot event))))
 
 (defn- broke-msg [e]
   (let [cause (clojure.stacktrace/root-cause e)
@@ -46,7 +46,7 @@
 (defn consider-event [robot {:keys [type text] :as event} aliases reflexes]
   (try
     (if-let [[_ salutation command] (and (= type :text) text (re-matches aliases text))]
-      (let [command (assoc event :type :command :text command :salutation salutation)]
+      (let [command (assoc event :type :command, :text command, :salutation salutation)]
         (or (go-over robot command reflexes)
             (say robot "I don't get it, sorry")))
       (go-over robot event reflexes))
