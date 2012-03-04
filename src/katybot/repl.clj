@@ -28,18 +28,17 @@
 (reload-reflexes)
 
 (defn listen-console []
-  (-> {}
+  (-> (new-robot)
     (+file-memory "robot.memory")
     (+console-receptor)
-    (+global-brain ["/" "Katy" "Kate" "Катя"])
+    (+global-brain ["/" "Katy" "Kate"])
     (listen)))
 
 (defn listen-campfire []
-  (-> {}
+  (-> (new-robot)
     (+file-memory "robot.memory")
     (+campfire-receptor (env "KATYBOT_CAMPFIRE_ACCOUNT")
                         (env "KATYBOT_CAMPFIRE_ROOM")
                         (env "KATYBOT_CAMPFIRE_TOKEN"))
-    (+global-brain [(env "KATYBOT_CAMPFIRE_ALIASES")])
+    (+global-brain [(or (env "KATYBOT_CAMPFIRE_ALIASES") "/|Kat[ye]")])
     (listen)))
-

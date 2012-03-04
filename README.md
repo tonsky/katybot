@@ -17,9 +17,9 @@ To run her in Campfire, define following env variables before runnig `lein repl`
     katybot.repl=> (listen-campfire)
 
 
-#### Testing
+#### Using
 
-To test the bot, use
+Bot answers to commands starting from aliases, by default they're `Kate`, `Katy` and `/`:
 
     > Kate, hello!
     < Nice to see you again
@@ -48,6 +48,6 @@ or type an empty string (console only).
 
 Take a look at `reflexes` directory for hints on how to implement your own extension scripts. `katybot.repl/reload-reflexes` scans `reflexes` and its sub-directroies and loads every `.clj` file as an robot’s extension script.
 
-Extensions could be reloaded on the fly, without stopping runnig robot. Just evaluate
+Extensions could be reloaded on the fly, without stopping robot. Just evaluate:
 
     katybot.repl=> (reload-reflexes)
