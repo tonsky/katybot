@@ -3,7 +3,7 @@
   (:require [clojure.string :as str]))
 
 (defn reload-robot []
-  (doseq [module ["utils" "core" "brain" "campfire" "console" "atom_memory" ]]
+  (doseq [module ["utils" "core" "brain" "campfire" "console" "atom_memory" "file_memory"]]
     (fyi "Loading " module)
     (load module)
     (use (-> (str "katybot." module) (str/replace "_" "-") symbol))))
@@ -29,20 +29,17 @@
 
 (defn test-console []
   (-> {}
-    (+atom-memory)
+    (+file-memory "robot.memory")
     (+console-receptor)
     (+global-brain ["/" "Katy" "Kate" "Катя"])
     (listen)))
 
 (defn test-campfire []
   (-> {}
-    (+atom-memory)
+    (+file-memory "robot.memory")
     (+campfire-receptor (env "KATYBOT_CAMPFIRE_ACCOUNT")
                         (env "KATYBOT_CAMPFIRE_ROOM")
                         (env "KATYBOT_CAMPFIRE_TOKEN"))
     (+global-brain [(env "KATYBOT_CAMPFIRE_ALIASES")])
     (listen)))
-
-(defn test-campfire-bg []
-  (-> (Thread. #(test-campfire)) (.start)))
 

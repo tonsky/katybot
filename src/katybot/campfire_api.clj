@@ -19,7 +19,7 @@
 (def ^:dynamic *stuck-timeout* 10000)
 (def ^:dynamic *headers* {"Content-Type" "application/json; charset=utf-8"
                           "Accept"       "application/json"})
-(def ^:dynamic *user-agent* "Katybot")
+(def ^:dynamic *user-agent* "katybot.campfire-api")
 (def ^:dynamic *debug* false)
 
 (declare room-agent)

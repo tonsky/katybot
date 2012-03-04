@@ -6,7 +6,7 @@
 [+] Deal with campfire reconnects  
 [−] Async commands processing (send-off to agent, monitor state via listener?)  
 [+] In-memory kv storage  
-[?] Persistent kv storage  
+[+] Persistent kv storage  
 [+] Convert protocols to multimethods  
 [+] Use macro to define commands  
 [+] Reorganize scripts to separate files  
