@@ -10,14 +10,14 @@
 
 (defn- load-dir [dir]
   (fyi "Loading " dir ":")
-  (doseq [f (file-children (.getCanonicalFile dir) #".*\.clj")]
-    (fyi "  " (.getName f))
+  (doseq [f (->> (file-seq (clojure.java.io/as-file dir))
+                 (filter  #(-> (.getName %) (.endsWith ".clj")))
+                 (sort-by #(.getParent %)))]
+    (fyi "  " f)
     (load-file (.getCanonicalPath f))))
 
 (defn reload-reflexes []
-  (let [dir (file ".")]
-    (load-dir (file-child dir "reflexes"))
-    (load-dir (file-child dir "reflexes/ru"))))
+  (load-dir "reflexes"))
 
 (defn reload-all []
   (fyi "Loading repl")
@@ -27,14 +27,14 @@
 (reload-robot)
 (reload-reflexes)
 
-(defn test-console []
+(defn listen-console []
   (-> {}
     (+file-memory "robot.memory")
     (+console-receptor)
     (+global-brain ["/" "Katy" "Kate" "Катя"])
     (listen)))
 
-(defn test-campfire []
+(defn listen-campfire []
   (-> {}
     (+file-memory "robot.memory")
     (+campfire-receptor (env "KATYBOT_CAMPFIRE_ACCOUNT")

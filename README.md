@@ -4,7 +4,7 @@ Best way to start Katybot is to use `lein repl`, this way `repl.clj` will be loa
 
 To test Katybot in console:
 
-    katybot.repl=> (test-console)
+    katybot.repl=> (listen-console)
 
 To run her in Campfire, define following env variables before runnig `lein repl`:
 
@@ -14,7 +14,7 @@ To run her in Campfire, define following env variables before runnig `lein repl`
     ~/katybot/$ export KATYBOT_CAMPFIRE_ALIASES="/|Kat[ey]|robot"
     ~/katybot/$ lein repl
 
-    katybot.repl=> (test-campfire)
+    katybot.repl=> (listen-campfire)
 
 
 #### Testing
@@ -46,8 +46,8 @@ or type an empty string (console only).
 
 #### Extending
 
-Take a look at `reflexes` directory for hints on how to implement your own extension scripts. `katybot.repl-helper` scans `reflexes` and `reflexes/ru` directroies by default and loads every `.clj` file as an robot’s extension script.
+Take a look at `reflexes` directory for hints on how to implement your own extension scripts. `katybot.repl/reload-reflexes` scans `reflexes` and its sub-directroies and loads every `.clj` file as an robot’s extension script.
 
-Extensions could be reloaded without stopping runnig robot by evaluating
+Extensions could be reloaded on the fly, without stopping runnig robot. Just evaluate
 
     katybot.repl=> (reload-reflexes)

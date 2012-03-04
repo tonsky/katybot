@@ -20,10 +20,6 @@
 (defn change-keys [m & keys]
   (reduce (fn [acc [old new]] (dissoc (assoc acc new (m old)) old)) m (apply hash-map keys)))
 
-(defn update-in-def [m keys default f]
-  (let [old (get-in m keys default)]
-    (assoc-in m keys (f old))))
-
 (defn log  [& msg] 
   (let [ts (-> (java.text.SimpleDateFormat. "MMM dd HH:mm:ss") (.format (java.util.Date.)))]
     (println (apply str "\u001b[1;30m" ts "\u001b[m " msg))))
@@ -46,33 +42,12 @@
     (let [resp   (httpc/await (httpc/GET client url :query query))
           status (:code (httpc/status resp))
           res    (httpc/string resp)]
-    (when-not (= 200 status)
-      (omg! "BAD RESPONSE: " res)
-      (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
-    res)))
-
-(defn file [name]
-  (let [f (java.io.File. name)]
-    (if (.exists f) f nil)))
-
-(defn file-parent [file]
-  (.getParentFile file))
-
-(defn file-child [file name]
-  (java.io.File. file name))
-
-(defn file-children [file re]
-  (seq (.listFiles file
-    (reify java.io.FilenameFilter
-      (accept [_ f name]
-        (and
-          (.isFile (java.io.File. f name))
-          (not (nil? (re-matches re name)))))))))
-
-(defn file-subdirs [file]
-  (seq (.listFiles file
-    (reify java.io.FileFilter
-      (accept [_ f] (.isDirectory f))))))
+      (cond
+        (httpc/failed? resp) (throw (httpc/error resp))
+        (not= status 200) (do
+          (omg! "BAD RESPONSE: " res)
+          (throw (Exception. (str url ": " status res "\n" (httpc/headers resp)))))
+        :else res))))
 
 (defn now []
   (-> (java.util.Date.) .getTime))

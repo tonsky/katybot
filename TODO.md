@@ -14,5 +14,4 @@
 [+] Multi-language support  
 [−] Unittests  
 [+] Do smth beautiful with httpc/client  
-[?] Multiple campfire rooms  
 [+] Scan dir searching for scripts  
