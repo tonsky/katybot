@@ -1,3 +1,7 @@
+#### Code walkthrough
+
+If you’re interested in learning Clojure, read source code walkthrough here: http://tonsky.livejournal.com/255587.html
+
 #### Starting
 
 Best way to start Katybot is to use `lein repl`, this way `repl.clj` will be loaded automatically with a bunch of useful fns.
